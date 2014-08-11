@@ -109,12 +109,13 @@ class ReplayTransport(Transport):
             'method': method,
             'url': url,
             'params': params,
-            'body': body,
+            'body': self.deserializer.loads(body) if body != '-\n' else body,
             'status': status,
             'response': response,
         }
         for key, value in retval.items():
-            retval[key] = value.rstrip('\n')
+            if isinstance(value, basestring):
+                retval[key] = value.rstrip('\n')
 
         retval['status'] = int(retval['status'])
         return retval
@@ -148,8 +149,8 @@ class ReplayTransport(Transport):
             data = self.replay_iterator.next()
         except StopIteration:
             raise ReplayLogExceededError('No more entries in replay log')
-        except Exception:
-            raise ReplayFileParseError('Error parsing replay file.')
+        except Exception as e:
+            raise ReplayFileParseError('Error parsing replay file: %s', e)
 
         current = {
             'method': method,
@@ -164,7 +165,8 @@ class ReplayTransport(Transport):
         return data['status'], self.deserializer.loads(data['response'])
 
     def perform_request(self, method, url, params=None, body=None):
-        body = self.serializer.dumps(body) if body else None
+        if body and isinstance(body, basestring):
+            body = self.deserializer.loads(body)
         status, data = self.get_next_replay(method, url, params, body)
 
         # Support for exeptions

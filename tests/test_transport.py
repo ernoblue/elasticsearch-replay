@@ -16,7 +16,7 @@ IN_CONTENTS = """#> GET /myindex -
 #< {"key": "value"}
 ##
 #> GET /myindex2 -
-#> {'req': 'body'}
+#> {"req": "body"}
 #< 200
 #< {"key": "value2"}
 ##
@@ -179,7 +179,7 @@ class ReplayTransportFullTestCase(unittest.TestCase):
     def test_more_requests(self):
         status1, data1 = self.t.perform_request(*self.args)
         status2, data2 = self.t.perform_request(
-            'GET', '/myindex2', body="{'req': 'body'}"
+            'GET', '/myindex2', body='{"req": "body"}'
         )
         assert status1 == 200
         assert {"key": "value"} == data1
@@ -187,6 +187,22 @@ class ReplayTransportFullTestCase(unittest.TestCase):
         assert {"key": "value2"} == data2
         with self.assertRaises(ReplayLogExceededError):
             self.t.perform_request(*self.args)
+
+    def test_diffrent_body_same_after_deserialization(self):
+        self.t.perform_request(*self.args)
+        status, data = self.t.perform_request(
+            'GET', '/myindex2', body='{"req": \n "body"}'
+        )
+        assert status == 200
+        assert {"key": "value2"} == data
+
+    def test_body_as_dict(self):
+        self.t.perform_request(*self.args)
+        status, data = self.t.perform_request(
+            'GET', '/myindex2', body={"req": "body"}
+        )
+        assert status == 200
+        assert {"key": "value2"} == data
 
 
 class FullIntegrationTestCase(unittest.TestCase):
