@@ -23,6 +23,13 @@ IN_CONTENTS = """#> GET /myindex -
 
 """
 
+IN_SCROLL = """#> POST /_search/scroll scroll=5m
+#> c2NhbjswOzE7dG90YWxfaGl0czoxMDA7
+#< 200
+#< {"hits": {"hits": [], "total": 100, "max_score": 0.0}, "_shards": {"successful": 0, "failed": 0, "total": 0}, "took": 0, "_scroll_id": "c2NhbjswOzE7dG90YWxfaGl0czoxMDA7", "timed_out": false}
+##
+"""
+
 
 class DummyConnection(elasticsearch.Connection):
 
@@ -203,6 +210,17 @@ class ReplayTransportFullTestCase(unittest.TestCase):
         )
         assert status == 200
         assert {"key": "value2"} == data
+
+
+def test_non_deserializable_body():
+    f = StringIO.StringIO(IN_SCROLL)
+    t = ReplayTransport([{}], recfile=f, connection_class=DummyConnection)
+    status, data = t.perform_request(
+        'POST', '/_search/scroll', {'scroll': '5m'},
+        'c2NhbjswOzE7dG90YWxfaGl0czoxMDA7'
+    )
+    assert status == 200
+    assert '_scroll_id' in data
 
 
 class FullIntegrationTestCase(unittest.TestCase):

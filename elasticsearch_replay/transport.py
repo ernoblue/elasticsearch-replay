@@ -2,7 +2,7 @@ import logging
 from urllib import urlencode
 
 from elasticsearch.transport import Transport
-from elasticsearch.exceptions import TransportError
+from elasticsearch.exceptions import TransportError, SerializationError
 
 from .exceptions import RequestMatchError, ReplayLogExceededError, \
         ReplayFileParseError
@@ -105,11 +105,19 @@ class ReplayTransport(Transport):
         body = '\n'.join(req[1:])
         status = resp[0]
         response = '\n'.join(resp[1:])
+
+        deserialized = body
+        if deserialized != '-\n':
+            try:
+                deserialized = self.deserializer.loads(body)
+            except SerializationError:
+                pass
+
         retval = {
             'method': method,
             'url': url,
             'params': params,
-            'body': self.deserializer.loads(body) if body != '-\n' else body,
+            'body': deserialized,
             'status': status,
             'response': response,
         }
@@ -166,7 +174,10 @@ class ReplayTransport(Transport):
 
     def perform_request(self, method, url, params=None, body=None):
         if body and isinstance(body, basestring):
-            body = self.deserializer.loads(body)
+            try:
+                body = self.deserializer.loads(body)
+            except SerializationError:
+                pass
         status, data = self.get_next_replay(method, url, params, body)
 
         # Support for exeptions
