@@ -173,6 +173,12 @@ class ReplayTransport(Transport):
         return data['status'], self.deserializer.loads(data['response'])
 
     def perform_request(self, method, url, params=None, body=None):
+        # The fun with serialization and deserialization below is due to the
+        # fact that eg. datetime is serialized but not deserialized. So we put
+        # the request body here to the same process as the recorded one (first
+        # it's serialized in RecordTransport and later deserialized in
+        # ReplayTransport)
+        body = self.serializer.dumps(body)
         if body and isinstance(body, basestring):
             try:
                 body = self.deserializer.loads(body)

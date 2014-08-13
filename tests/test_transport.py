@@ -30,6 +30,12 @@ IN_SCROLL = """#> POST /_search/scroll scroll=5m
 ##
 """
 
+IN_DATETIME = """#> GET /_search -
+#> {"filter": {"range": {"date": {"gte": "2014-07-01T00:00:00", "lte": "2014-07-15T23:59:59"}}}}
+#< 200
+#< {"key": "value2"}
+##
+"""
 
 class DummyConnection(elasticsearch.Connection):
 
@@ -221,6 +227,24 @@ def test_non_deserializable_body():
     )
     assert status == 200
     assert '_scroll_id' in data
+
+
+def test_non_deserializable_elements_in_body():
+    import datetime
+    body = {
+        'filter': {
+            'range': {
+                'date': {
+                    'gte': datetime.datetime(2014, 7, 1, 0, 0),
+                    'lte': datetime.datetime(2014, 7, 15, 23, 59, 59)
+                }
+            }
+        }
+    }
+    f = StringIO.StringIO(IN_DATETIME)
+    t = ReplayTransport([{}], recfile=f, connection_class=DummyConnection)
+    status, data = t.perform_request('GET', '/_search', body=body)
+    assert status == 200
 
 
 class FullIntegrationTestCase(unittest.TestCase):
